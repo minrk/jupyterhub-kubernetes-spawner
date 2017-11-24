@@ -768,7 +768,7 @@ class KubeSpawner(Spawner):
             service_account=self.singleuser_service_account,
             extra_container_config=self.singleuser_extra_container_config,
             extra_pod_config=self.singleuser_extra_pod_config,
-            extra_containes=self.singleuser_extra_containers
+            extra_containers=self.singleuser_extra_containers,
         )
 
     def get_pvc_manifest(self):
