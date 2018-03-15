@@ -971,10 +971,11 @@ class KubeSpawner(Spawner):
         JupyterHub expects.
         """
         # have to wait for first load of data before we have a valid answer
+        print('in poll')
         if not self.pod_reflector.first_load_future.done():
             yield self.pod_reflector.first_load_future
         data = self.pod_reflector.pods.get(self.pod_name, None)
-        print('poll', self)
+        print('poll', self, type(data))
         if data is not None:
             for c in data.status.container_statuses:
                 # return exit code if notebook container has terminated
