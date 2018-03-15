@@ -971,24 +971,25 @@ class KubeSpawner(Spawner):
         JupyterHub expects.
         """
         # have to wait for first load of data before we have a valid answer
-        1/0
-        print('in poll')
+        self.log.info("in poll")
         if not self.pod_reflector.first_load_future.done():
             yield self.pod_reflector.first_load_future
         data = self.pod_reflector.pods.get(self.pod_name, None)
-        print('poll', self, type(data))
+        self.log.info("poll %s %s", self, type(data))
         if data is not None:
             for c in data.status.container_statuses:
                 # return exit code if notebook container has terminated
                 if c.name == 'notebook':
                     if c.state.terminated:
-                        print("terminated", c.state.terminated)
+                        self.log.info("terminated %s", c.state.terminated)
                         return c.state.terminated.exit_code
                     else:
-                        print("not terminated", c.state)
+                        self.log.info("not terminated %s", c.state)
                     break
                 else:
-                    print("not notebook", c)
+                    self.log.info("not notebook %s", c)
+            else:
+                self.log.info("statuses %s", data.status.container_statuses)
             # None means pod is running or starting up
             return None
         # pod doesn't exist or has been deleted
