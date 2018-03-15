@@ -982,7 +982,11 @@ class KubeSpawner(Spawner):
                     if c.state.terminated:
                         print("terminated", c.state.terminated)
                         return c.state.terminated.exit_code
+                    else:
+                        print("not terminated", c.state)
                     break
+                else:
+                    print("not notebook", c)
             # None means pod is running or starting up
             return None
         # pod doesn't exist or has been deleted
