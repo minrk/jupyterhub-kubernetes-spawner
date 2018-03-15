@@ -971,6 +971,7 @@ class KubeSpawner(Spawner):
         JupyterHub expects.
         """
         # have to wait for first load of data before we have a valid answer
+        1/0
         print('in poll')
         if not self.pod_reflector.first_load_future.done():
             yield self.pod_reflector.first_load_future
