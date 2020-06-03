@@ -1361,6 +1361,32 @@ class KubeSpawner(Spawner):
         annotations.update(extra_annotations)
         return annotations
 
+    get_pod_url = Callable(
+        allow_none=True,
+        config=True,
+        help="""Callable to retrieve pod url
+
+        Called with (spawner, pod)
+
+        Must not be async
+        """,
+    )
+    def _get_pod_url(self, pod):
+        """Return the pod url
+
+        Default: use pod.status.pod_ip
+        """
+        if self.get_pod_url is None:
+            # TODO: https with internal_ssl
+            return "http{}://{}:{}".format(
+                "s" if getattr(self, "internal_ssl", False) else "",
+                pod.status.pod_ip,
+                self.port,
+            )
+        else:
+            return self.get_pod_url(self, pod)
+
+
     @gen.coroutine
     def get_pod_manifest(self):
         """
@@ -1532,11 +1558,11 @@ class KubeSpawner(Spawner):
         # have to wait for first load of data before we have a valid answer
         if not self.pod_reflector.first_load_future.done():
             yield self.pod_reflector.first_load_future
-        data = self.pod_reflector.pods.get(self.pod_name, None)
-        if data is not None:
-            if data.status.phase == 'Pending':
+        pod = self.pod_reflector.pods.get(self.pod_name, None)
+        if pod is not None:
+            if pod.status.phase == 'Pending':
                 return None
-            ctr_stat = data.status.container_statuses
+            ctr_stat = pod.status.container_statuses
             if ctr_stat is None:  # No status, no container (we hope)
                 # This seems to happen when a pod is idle-culled.
                 return 1
@@ -1549,6 +1575,17 @@ class KubeSpawner(Spawner):
                             yield self.stop(now=True)
                         return c.state.terminated.exit_code
                     break
+
+            # pod running. Check and update server url if it changed!
+            # only do this if fully running, not just starting up
+            if self.is_pod_running(pod):
+                pod_url = self._get_pod_url(pod)
+                if self.server.url != pod_url:
+                    self.log.warning("Pod {} url changed! {} -> {}".format(
+                        pod.metadata.name, self.server.url, pod_url))
+                    self.server.url = pod_url
+                    self.db.commit()
+
             # None means pod is running or starting up
             return None
         # pod doesn't exist or has been deleted
@@ -1850,7 +1887,7 @@ class KubeSpawner(Spawner):
                     ]
                 ),
             )
-        return (pod.status.pod_ip, self.port)
+        return self._get_pod_url(pod)
 
     @gen.coroutine
     def stop(self, now=False):
